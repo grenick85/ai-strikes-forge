@@ -1,28 +1,30 @@
-from fastapi import FastAPI, HTTPException
-from model import predict_matchup # <--- IMPORTING THE CHEF
+from fastapi import FastAPI
+from pydantic import BaseModel
+from model import predict_winner
+from enum import Enum
 
-app = FastAPI(
-    title="The Architect's Sports Oracle",
-    description="Neural-Network style prediction engine for NFL games.",
-    version="2.0"
-)
+app = FastAPI(title="The Architect's Sports Oracle", version="2.0")
+
+# 1. This creates the Dropdown Menu for sports
+class Sport(str, Enum):
+    NFL = "NFL"
+    NBA = "NBA"
+    NCAAB = "NCAAB"
+    MLB = "MLB"
+    NHL = "NHL"
+
+# 2. This tells the API what data we need from the user
+class MatchRequest(BaseModel):
+    sport: Sport
+    home_team: str
+    away_team: str
 
 @app.get("/")
-def home():
-    return {"message": "System Online. Use /predict?home=Bills&away=Chiefs"}
+def read_root():
+    return {"message": "Oracle 2.0 Online. Ready for Multi-Sport Analysis."}
 
-# The New Dynamic Endpoint
-@app.get("/predict")
-def get_prediction(home: str, away: str):
-    """
-    Query Example: /predict?home=Bills&away=Dolphins
-    """
-    result = predict_matchup(home, away)
-    
-    if "error" in result:
-        raise HTTPException(status_code=404, detail=result["error"])
-        
-    return {
-        "architect_analysis": result,
-        "disclaimer": "Algorithm is for entertainment purposes."
-    }
+@app.post("/predict")
+def get_prediction(match: MatchRequest):
+    # This sends the data to your new brain in model.py
+    result = predict_winner(match.home_team, match.away_team, match.sport)
+    return result

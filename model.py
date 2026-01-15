@@ -1,84 +1,58 @@
-# THE ARCHITECT'S BRAIN (Database + Logic)
+import random
 
-# 1. The Data (NFL, NBA, NCAA)
-team_stats = {
-    # --- NFL ---
-    "chiefs": 0.95, "kansas city chiefs": 0.95,
-    "49ers": 0.94, "san francisco 49ers": 0.94,
-    "ravens": 0.93, "baltimore ravens": 0.93,
-    "lions": 0.91, "detroit lions": 0.91,
-    "bills": 0.90, "buffalo bills": 0.90,
-    "cowboys": 0.88, "dallas cowboys": 0.88,
-    "eagles": 0.87, "philadelphia eagles": 0.87,
-    "dolphins": 0.85, "miami dolphins": 0.85,
-    "browns": 0.82, "cleveland browns": 0.82,
-    "packers": 0.80, "green bay packers": 0.80,
-    "rams": 0.79, "los angeles rams": 0.79,
-    "jaguars": 0.78, "jacksonville jaguars": 0.78,
-    "steelers": 0.77, "pittsburgh steelers": 0.77,
-    "bengals": 0.76, "cincinnati bengals": 0.76,
-    "buccaneers": 0.75, "tampa bay buccaneers": 0.75,
-    "seahawks": 0.74, "seattle seahawks": 0.74,
-    "colts": 0.72, "indianapolis colts": 0.72,
-    "vikings": 0.71, "minnesota vikings": 0.71,
-    "bears": 0.65, "chicago bears": 0.65,
-    "falcons": 0.64, "atlanta falcons": 0.64,
-    "saints": 0.63, "new orleans saints": 0.63,
-    "broncos": 0.62, "denver broncos": 0.62,
-    "raiders": 0.61, "las vegas raiders": 0.61,
-    "jets": 0.60, "new york jets": 0.60,
-    "giants": 0.58, "new york giants": 0.58,
-    "titans": 0.57, "tennessee titans": 0.57,
-    "cardinals": 0.56, "arizona cardinals": 0.56,
-    "patriots": 0.55, "new england patriots": 0.55,
-    "commanders": 0.54, "washington commanders": 0.54,
-    "panthers": 0.50, "carolina panthers": 0.50,
-
-    # --- NBA ---
-    "celtics": 0.94, "boston celtics": 0.94,
-    "nuggets": 0.93, "denver nuggets": 0.93,
-    "bucks": 0.91, "milwaukee bucks": 0.91,
-    "timberwolves": 0.90, "minnesota timberwolves": 0.90,
-    "lakers": 0.84, "los angeles lakers": 0.84,
-    "warriors": 0.83, "golden state warriors": 0.83,
-    "bulls": 0.70, "chicago bulls": 0.70,
-
-    # --- NCAA ---
-    "michigan": 0.89, "michigan wolverines": 0.89,
-    "washington": 0.88, "washington huskies": 0.88,
-    "texas": 0.87, "texas longhorns": 0.87,
-    "alabama": 0.86, "alabama crimson tide": 0.86,
-    "georgia": 0.85, "georgia bulldogs": 0.85,
-    "ohio state": 0.80, "ohio state buckeyes": 0.80
-}
-
-# 2. The Logic Function
-def predict_matchup(home_team, away_team):
-    home = home_team.lower().strip()
-    away = away_team.lower().strip()
-
-    # Check if teams exist
-    if home not in team_stats or away not in team_stats:
-        return {"error": "Team not found in database. Check spelling!"}
-
-    # Get stats
-    home_strength = team_stats[home]
-    away_strength = team_stats[away]
-
-    # Calculate (Home field advantage = +0.1)
-    home_total = home_strength + 0.1
+def predict_winner(home_team, away_team, sport):
+    # Normalize inputs to keep them consistent
+    home = home_team.strip()
+    away = away_team.strip()
     
-    if home_total > away_strength:
-        winner = home_team
-        margin = home_total - away_strength
+    # THE ARCHITECT'S SECRET SAUCE:
+    # We use the team names to create a "seed". 
+    # This ensures the prediction stays the same if you ask twice (consistency),
+    # but still feels random between different matchups.
+    match_seed = hash(home + away + sport)
+    random.seed(match_seed)
+    
+    # 1. Determine Winner (50/50 base logic)
+    # We generate a "power level" for each team
+    home_power = random.randint(0, 100)
+    away_power = random.randint(0, 100)
+    
+    if home_power > away_power:
+        winner = home
+        # Calculate confidence based on the gap in power
+        confidence = 50 + (home_power - away_power) / 2
     else:
-        winner = away_team
-        margin = away_strength - home_total
-    
-    # Return a Dictionary (JSON)
+        winner = away
+        confidence = 50 + (away_power - home_power) / 2
+        
+    # Cap confidence so it's never 100% (sports are unpredictable!)
+    confidence = min(99, max(51, confidence))
+
+    # 2. Generate Realistic Scores based on the Sport
+    if sport == "NBA" or sport == "NCAAB":
+        # Basketball: High scores (100+)
+        score_winner = random.randint(105, 135)
+        score_loser = score_winner - random.randint(1, 15)
+        
+    elif sport == "NFL":
+        # Football: Touchdown/Field goal math
+        score_winner = random.choice([21, 24, 27, 30, 31, 34, 38])
+        score_loser = score_winner - random.choice([3, 7, 10, 14])
+        
+    elif sport == "MLB" or sport == "NHL":
+        # Baseball/Hockey: Low scores (Runs/Goals)
+        score_winner = random.randint(3, 8)
+        score_loser = score_winner - random.randint(1, 3)
+        
+    else:
+        # Fallback
+        score_winner = 0
+        score_loser = 0
+
     return {
-        "matchup": f"{home_team} vs {away_team}",
+        "matchup": f"{away} @ {home}",
+        "sport": sport,
         "predicted_winner": winner,
-        "confidence_level": f"{round(margin * 100, 1)}%",
-        "data_source": "The Architect v2.0"
+        "predicted_score": f"{score_winner} - {score_loser}",
+        "confidence": f"{int(confidence)}%"
     }
