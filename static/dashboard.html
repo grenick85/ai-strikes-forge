@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>THE FORGE | COMMAND CENTER</title>
+    <style>
+        :root { --pip-green: #00ff00; --pip-dark: #001100; }
+        body {
+            background-color: var(--pip-dark); color: var(--pip-green);
+            font-family: 'Courier New', monospace; margin: 20px; text-shadow: 0 0 5px var(--pip-green);
+        }
+        body::before {
+            content: " "; display: block; position: fixed; top: 0; left: 0; bottom: 0; right: 0;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), 
+                        linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 118, 0.06));
+            z-index: 1000; background-size: 100% 2px, 3px 100%; pointer-events: none;
+        }
+        .header { border-bottom: 2px solid var(--pip-green); padding-bottom: 10px; margin-bottom: 20px; }
+        .grid { display: grid; grid-template-columns: 320px 1fr; gap: 20px; }
+        .panel { border: 1px solid var(--pip-green); padding: 15px; background: rgba(0, 20, 0, 0.5); }
+        .target { border: 1px solid var(--pip-green); padding: 10px; margin-bottom: 10px; cursor: pointer; font-size: 0.9rem; }
+        .target:hover { background: var(--pip-green); color: var(--pip-dark); }
+        button, select {
+            background: none; color: var(--pip-green); border: 1px solid var(--pip-green);
+            padding: 10px; width: 100%; cursor: pointer; font-family: inherit; margin-bottom: 10px;
+        }
+        .intel-output { white-space: pre-wrap; font-size: 1.1rem; line-height: 1.5; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>[_AI-STRIKES_V2.0_:_THE_FORGE_]</h1>
+        <p>CITIZEN: {{ citizen_id }} | FUSION CORES: {{ cores }}</p>
+    </div>
+    <div class="grid">
+        <div class="panel">
+            <h3>[ SENSORS ]</h3>
+            <button onclick="loadTargets('NBA')">SCAN NBA</button>
+            <button onclick="loadTargets('NCAAB')">SCAN NCAAB</button>
+            <hr style="border-color: var(--pip-green);">
+            <label>STRIKE TIER:</label>
+            <select id="tier-select">
+                <option value="Tactical Advantage">TIER 1: Tactical Advantage</option>
+                <option value="Eyes in the Sky">TIER 2: Eyes in the Sky</option>
+                <option value="Cyber-nuked">TIER 3: Cyber-nuked</option>
+            </select>
+            <div id="target-list"></div>
+        </div>
+        <div class="panel">
+            <h3>[ RADAR_INTELLIGENCE ]</h3>
+            <div id="intel-display" class="intel-output">READY FOR TARGET ACQUISITION...</div>
+        </div>
+    </div>
+
+    <script>
+        async function loadTargets(sport) {
+            const list = document.getElementById('target-list');
+            list.innerHTML = ">>> SCANNING FREQUENCIES...";
+            const response = await fetch(`/get-targets/${sport}`);
+            const targets = await response.json();
+            list.innerHTML = "";
+            targets.forEach(g => {
+                const div = document.createElement('div');
+                div.className = 'target';
+                div.innerHTML = `${g.away} @ ${g.home}`;
+                div.onclick = () => conductStrike(g.home, g.away);
+                list.appendChild(div);
+            });
+        }
+
+        async function conductStrike(home, away) {
+            const tier = document.getElementById('tier-select').value;
+            const display = document.getElementById('intel-display');
+            display.innerHTML = `>>> STRIKE INITIATED: ${away} vs ${home}\n>>> TIER: ${tier}\n>>> UPLINKING...`;
+            
+            const response = await fetch('/strike', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+                body: `home=${encodeURIComponent(home)}&away=${encodeURIComponent(away)}&citizen_id={{ citizen_id }}&tier=${tier}`
+            });
+            
+            const data = await response.json();
+            display.innerHTML = `
+>>> TARGET CONFIRMED: ${data.intel.winner}
+>>> CONFIDENCE: ${data.intel.confidence}
+
+[_MATH_LOGS_]
+HOME RATING: ${data.intel.home_rating}
+AWAY RATING: ${data.intel.away_rating}
+SOURCE: ${data.status}
+
+[ AI_PROPHECY ]
+"${data.intel.prophecy}"`;
+        }
+        
+        loadTargets('NBA'); 
+    </script>
+</body>
+</html>

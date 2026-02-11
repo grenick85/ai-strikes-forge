@@ -1,0 +1,283 @@
+Full  code
+main.py
+import os
+import sqlite3
+import uvicorn
+from fastapi import FastAPI, Request, Form, HTTPException
+from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
+from model import ArchitectModel
+
+app = FastAPI(title="AI STRIKES - THE FORGE")
+model = ArchitectModel()
+
+# --- FILE PATHS ---
+BASE_DIR = r"C:\Users\nicky\Sports_predictions"
+STATIC_DIR = os.path.join(BASE_DIR, "static")
+FORGE_DB = os.path.join(BASE_DIR, "forge.db")
+MEMORY_DB = os.path.join(BASE_DIR, "architect_memory.db")
+
+app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
+templates = Jinja2Templates(directory=STATIC_DIR)
+
+@app.get("/", response_class=HTMLResponse)
+async def vault_door(request: Request):
+    return templates.TemplateResponse("login.html", {"request": request})
+
+@app.post("/authenticate")
+async def authenticate(citizen_id: str = Form(...), access_code: str = Form(...)):
+    conn = sqlite3.connect(FORGE_DB)
+    c = conn.cursor()
+    c.execute("SELECT * FROM citizens WHERE citizen_id=? AND access_code=?", (citizen_id, access_code))
+    user = c.fetchone()
+    conn.close()
+    if user: return RedirectResponse(url=f"/hub/{citizen_id}", status_code=303)
+    raise HTTPException(status_code=401, detail="INVALID ID")
+
+@app.get("/hub/{citizen_id}", response_class=HTMLResponse)
+async def command_center(request: Request, citizen_id: str):
+    conn = sqlite3.connect(FORGE_DB)
+    c = conn.cursor()
+    c.execute("SELECT fusion_cores, accuracy_rating FROM citizens WHERE citizen_id=?", (citizen_id,))
+    stats = c.fetchone()
+    conn.close()
+    return templates.TemplateResponse("dashboard.html", {
+        "request": request, 
+        "citizen_id": citizen_id, 
+        "cores": stats[0], 
+        "accuracy": stats[1]
+    })
+
+@app.get("/get-targets/{sport}")
+async def get_targets(sport: str):
+    conn = sqlite3.connect(MEMORY_DB)
+    c = conn.cursor()
+    c.execute("SELECT home_team, away_team FROM schedule WHERE sport = ? LIMIT 20", (sport.upper(),))
+    games = c.fetchall()
+    conn.close()
+    return [{"home": g[0], "away": g[1]} for g in games]
+
+@app.post("/strike")
+async def conduct_strike(home: str, away: str, citizen_id: str, tier: str = "Tactical Advantage"):
+    intel = model.get_tiered_prediction(home, away, tier=tier)
+    
+    if intel["status"] == "SUCCESS":
+        # Fuel Scaling
+        costs = {"Tactical Advantage": 0.5, "Eyes in the Sky": 1.0, "Cyber-nuked": 2.0}
+        cost = costs.get(tier, 0.5)
+        
+        conn = sqlite3.connect(FORGE_DB)
+        c = conn.cursor()
+        c.execute("UPDATE citizens SET fusion_cores = fusion_cores - ? WHERE citizen_id=?", (cost, citizen_id))
+        conn.commit()
+        conn.close()
+        
+    return {"status": intel["status"], "intel": intel}
+
+if __name__ == "__main__":
+    uvicorn.run(app, host="127.0.0.1", port=8000)
+
+
+model.py
+import os
+import sqlite3
+import math
+import json
+from google import genai
+from dotenv import load_dotenv
+from utils.config import get_fatigue_penalty
+
+load_dotenv()
+
+class ArchitectModel:
+    def __init__(self):
+        self.api_key = os.getenv("GEMINI_API_KEY")
+        self.client = genai.Client(api_key=self.api_key, http_options={'api_version': 'v1beta'})
+        self.db_path = r"C:\Users\nicky\Sports_predictions\architect_memory.db"
+        self._init_log_table()
+
+    def _init_log_table(self):
+        """Ensures the prophecy cache exists in your memory bank."""
+        conn = sqlite3.connect(self.db_path)
+        c = conn.cursor()
+        c.execute('''CREATE TABLE IF NOT EXISTS prophecy_logs (
+                        matchup_key TEXT PRIMARY KEY,
+                        tier TEXT,
+                        winner TEXT,
+                        confidence TEXT,
+                        home_rating REAL,
+                        away_rating REAL,
+                        prophecy TEXT,
+                        timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+                     )''')
+        conn.commit()
+        conn.close()
+
+    def get_combat_stats(self, team):
+        conn = sqlite3.connect(self.db_path)
+        c = conn.cursor()
+        c.execute("SELECT wins, losses, points_for, points_against FROM team_stats WHERE team_name = ?", (team,))
+        stats = c.fetchone() or (10, 10, 110, 110)
+        conn.close()
+        return stats
+
+    def get_tiered_prediction(self, home, away, tier="Tactical Advantage"):
+        # Create a unique key for this specific matchup and tier
+        matchup_key = f"{home}_vs_{away}_{tier}"
+
+        # 1. CHECK THE CACHE (Memory Retrieval)
+        conn = sqlite3.connect(self.db_path)
+        c = conn.cursor()
+        c.execute("SELECT winner, confidence, home_rating, away_rating, prophecy FROM prophecy_logs WHERE matchup_key = ?", (matchup_key,))
+        cached = c.fetchone()
+        
+        if cached:
+            conn.close()
+            return {
+                "winner": cached[0], "confidence": cached[1], "home_rating": cached[2],
+                "away_rating": cached[3], "prophecy": cached[4], "status": "CACHED"
+            }
+
+        # 2. CALC THE ELO MATH (If not in cache)
+        h_stats = self.get_combat_stats(home)
+        a_stats = self.get_combat_stats(away)
+        
+        r_home = 1500 + ((h_stats[0] - h_stats[1]) * 10)
+        r_away = 1500 + ((a_stats[0] - a_stats[1]) * 10)
+
+        # Apply Fatigue and Tiers
+        h_penalty = get_fatigue_penalty(home, "2026-02-08")
+        a_penalty = get_fatigue_penalty(away, "2026-02-08")
+        r_home -= h_penalty
+        r_away -= a_penalty
+
+        if tier in ["Eyes in the Sky", "Cyber-nuked"]:
+            r_home += ((h_stats[2] - h_stats[3]) * 5)
+            r_away += ((a_stats[2] - a_stats[3]) * 5)
+
+        prob = 1.0 / (1.0 + (math.pow(10, (r_away - r_home) / 400.0)))
+        winner = home if prob > 0.5 else away
+        confidence = round(prob * 100, 2) if prob > 0.5 else round((1 - prob) * 100, 2)
+
+        # 3. GENERATE PROPHECY (AI Call)
+        try:
+            prompt = f"LEVEL: {tier}. MATCHUP: {home} vs {away}. WINNER: {winner} ({confidence}%). GIVE A CRYPTIC PROPHECY."
+            ai_resp = self.client.models.generate_content(model="models/gemini-2.0-flash", contents=prompt)
+            prophecy = ai_resp.text
+            status = "SUCCESS"
+            
+            # 4. SAVE TO CACHE (Log the strike)
+            c.execute("INSERT OR REPLACE INTO prophecy_logs (matchup_key, tier, winner, confidence, home_rating, away_rating, prophecy) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                      (matchup_key, tier, winner, f"{confidence}%", r_home, r_away, prophecy))
+            conn.commit()
+        except Exception:
+            prophecy = "BRAIN COOLING... RETRY IN 60s."
+            status = "COOLDOWN"
+
+        conn.close()
+        return {
+            "winner": winner, "confidence": f"{confidence}%", "home_rating": round(r_home, 1),
+            "away_rating": round(r_away, 1), "prophecy": prophecy, "status": status
+        }
+
+
+dashboard.html
+<div class="control-panel">
+    <h3>STRIKE PARAMETERS</h3>
+    <select id="tier-select">
+        <option value="Tactical Advantage">TIER 1: Tactical Advantage (0.5 Cores)</option>
+        <option value="Eyes in the Sky">TIER 2: Eyes in the Sky (1.0 Cores)</option>
+        <option value="Cyber-nuked">TIER 3: Cyber-nuked (2.0 Cores)</option>
+    </select>
+    
+    <div id="target-list">
+        </div>
+</div>
+
+<div id="intel-display"></div>
+
+<script>
+// FIX: Changed 'async def' to 'async function'
+async function conductStrike(home, away) {
+    const tier = document.getElementById('tier-select').value;
+    const citizenId = "{{ citizen_id }}";
+    
+    // Visual feedback: let the user know the strike is in progress
+    const resultsDiv = document.getElementById('intel-display');
+    resultsDiv.innerHTML = "<p style='color: yellow;'>CONDUCTING STRIKE... CALIBRATING ELO...</p>";
+
+    try {
+        const response = await fetch('/strike', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+            body: `home=${encodeURIComponent(home)}&away=${encodeURIComponent(away)}&citizen_id=${citizenId}&tier=${tier}`
+        });
+        
+        const data = await response.json();
+        
+        if (data.status === "COOLDOWN") {
+            alert(data.intel.prophecy);
+            resultsDiv.innerHTML = `<p style='color: red;'>${data.intel.prophecy}</p>`;
+        } else {
+            displayIntel(data.intel);
+        }
+    } catch (error) {
+        resultsDiv.innerHTML = "<p style='color: red;'>CRITICAL ERROR: RADAR DISCONNECTED.</p>";
+    }
+}
+
+function displayIntel(intel) {
+    const resultsDiv = document.getElementById('intel-display');
+    resultsDiv.innerHTML = `
+        <div class="strike-report" style="border: 2px solid #00ff00; padding: 20px; margin-top: 20px; background: #000;">
+            <h2 style="color: #00ff00; text-transform: uppercase;">STRIKE: ${intel.winner}</h2>
+            <p style="font-size: 1.2em;"><strong>CONFIDENCE:</strong> ${intel.confidence}</p>
+            
+            <div class="elo-breakdown" style="background: #111; padding: 15px; border: 1px solid #333; margin: 10px 0;">
+                <p style="color: #888;">MATCHUP MATH:</p>
+                <p>Home Elo: <span style="color: #fff;">${intel.home_rating}</span></p>
+                <p>Away Elo: <span style="color: #fff;">${intel.away_rating}</span></p>
+                <p>Status: <span style="color: orange;">${intel.status}</span></p>
+            </div>
+            
+            <p class="prophecy" style="font-style: italic; color: #aaa; border-left: 3px solid #00ff00; padding-left: 10px;">
+                "${intel.prophecy}"
+            </p>
+        </div>
+    `;
+}
+</script>
+
+
+login.html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI-STRIKES | VAULT ENTRANCE</title>
+    <style>
+        :root { --pip-green: #1aff1a; --pip-dark: #050505; --pip-glow: rgba(26, 255, 26, 0.4); }
+        body { background-color: var(--pip-dark); color: var(--pip-green); font-family: 'Courier New', monospace; text-transform: uppercase; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; }
+        .terminal-frame { border: 3px solid var(--pip-green); width: 90%; max-width: 500px; padding: 30px; box-shadow: inset 0 0 20px var(--pip-glow), 0 0 15px var(--pip-glow); border-radius: 20px; }
+        input { background: none; border: 1px solid var(--pip-green); color: var(--pip-green); padding: 10px; margin-bottom: 15px; width: 95%; font-size: 1.1rem; }
+        .btn { border: 1px solid var(--pip-green); padding: 15px; text-align: center; cursor: pointer; background: none; color: var(--pip-green); width: 100%; text-transform: uppercase; font-size: 1.2rem; }
+        .btn:hover { background: var(--pip-green); color: var(--pip-dark); box-shadow: 0 0 20px var(--pip-green); }
+    </style>
+</head>
+<body>
+    <div class="terminal-frame">
+        <h1 style="text-align:center; letter-spacing: 5px;">AI-STRIKES</h1>
+        <p style="text-align:center;">[ TERMINAL 716: NIAGARA FALLS ]</p>
+        <hr style="border: 1px solid var(--pip-green);">
+        <form action="/authenticate" method="post">
+            <label>CITIZEN ID:</label>
+            <input type="text" name="citizen_id" required placeholder="USER@EMAIL.COM">
+            <label>ACCESS CODE:</label>
+            <input type="password" name="access_code" required placeholder="********">
+            <button type="submit" class="btn">[ AUTHENTICATE ]</button>
+        </form>
+    </div>
+</body>
+</html>

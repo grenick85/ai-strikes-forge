@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>AI-STRIKES | VAULT ENTRANCE</title>
+    <style>
+        :root { --pip-green: #00ff00; --pip-dark: #001100; --pip-glow: rgba(0, 255, 0, 0.4); }
+        body {
+            background-color: var(--pip-dark); color: var(--pip-green);
+            font-family: 'Courier New', monospace; text-shadow: 0 0 5px var(--pip-green);
+            display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0;
+        }
+        body::before {
+            content: " "; display: block; position: fixed; top: 0; left: 0; bottom: 0; right: 0;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), 
+                        linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 118, 0.06));
+            z-index: 1000; background-size: 100% 2px, 3px 100%; pointer-events: none;
+        }
+        .terminal-frame {
+            border: 3px solid var(--pip-green); width: 90%; max-width: 400px; padding: 30px;
+            box-shadow: inset 0 0 20px var(--pip-glow), 0 0 15px var(--pip-glow); border-radius: 20px;
+        }
+        input {
+            background: none; border: 1px solid var(--pip-green); color: var(--pip-green);
+            padding: 10px; margin-bottom: 15px; width: 100%; box-sizing: border-box; font-family: inherit;
+        }
+        .btn {
+            border: 1px solid var(--pip-green); padding: 15px; width: 100%;
+            background: none; color: var(--pip-green); text-transform: uppercase; cursor: pointer; font-family: inherit;
+        }
+        .btn:hover { background: var(--pip-green); color: var(--pip-dark); box-shadow: 0 0 20px var(--pip-green); }
+    </style>
+</head>
+<body>
+    <div class="terminal-frame">
+        <h1 style="text-align:center; letter-spacing: 5px;">AI-STRIKES</h1>
+        <p style="text-align:center;">[_TERMINAL_716_NIAGARA_FALLS_]</p>
+        <hr style="border: 0.5px solid var(--pip-green);">
+        <form action="/authenticate" method="post">
+            <label>CITIZEN ID:</label>
+            <input type="text" name="citizen_id" required placeholder="USER@EMAIL.COM">
+            <label>ACCESS CODE:</label>
+            <input type="password" name="access_code" required placeholder="********">
+            <button type="submit" class="btn">[_AUTHENTICATE_]</button>
+        </form>
+    </div>
+</body>
+</html>
