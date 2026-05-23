@@ -1,101 +1,127 @@
-import os
-import sqlite3
-import math
-from google import genai
-from dotenv import load_dotenv
-
-# Importing from your project structure
-try:
-    from utils.config import get_fatigue_penalty
-except ImportError:
-    # Fallback to avoid crashes if the utils folder is moved
-    def get_fatigue_penalty(team, date): return 0 
-
-load_dotenv()
+import json
+from datetime import datetime
 
 class ArchitectModel:
     def __init__(self):
-        self.api_key = os.getenv("GEMINI_API_KEY")
-        self.client = genai.Client(api_key=self.api_key, http_options={'api_version': 'v1beta'})
-        
-        # Establishing a dynamic path for your Sports_predictions directory
-        base_dir = os.path.dirname(os.path.abspath(__file__))
-        self.db_path = os.path.join(base_dir, "architect_memory.db")
-        self._init_cache()
+        self.madden_ratings = self._load_madden_ratings()
 
-    def _init_cache(self):
-        conn = sqlite3.connect(self.db_path)
-        # Force table structure with match_key 
-        conn.execute('''CREATE TABLE IF NOT EXISTS prophecy_logs 
-                        (match_key TEXT PRIMARY KEY, winner TEXT, confidence TEXT, 
-                         home_rating REAL, away_rating REAL, prophecy TEXT, tier TEXT)''')
-        
-        # AUTOMATIC REPAIR: Check for the match_key column 
-        cursor = conn.execute("PRAGMA table_info(prophecy_logs)")
-        columns = [column[1] for column in cursor.fetchall()]
-        if "match_key" not in columns:
-            print("[ SYSTEM ALERT ]: Table mismatch detected. Rebuilding prophecy_logs...")
-            conn.execute("DROP TABLE prophecy_logs")
-            conn.execute('''CREATE TABLE prophecy_logs 
-                            (match_key TEXT PRIMARY KEY, winner TEXT, confidence TEXT, 
-                             home_rating REAL, away_rating REAL, prophecy TEXT, tier TEXT)''')
-        
-        conn.commit()
-        conn.close()
-
-    def get_combat_stats(self, team):
-        conn = sqlite3.connect(self.db_path)
-        c = conn.cursor()
-        # Pulling stats for ELO calculation 
-        c.execute("SELECT wins, losses, points_for, points_against FROM team_stats WHERE team_name = ?", (team,))
-        stats = c.fetchone() or (10, 10, 110, 110)
-        conn.close()
-        return stats
-
-    def get_tiered_prediction(self, home, away, tier="Tactical Advantage"):
-        match_key = f"{home}_vs_{away}_{tier}"
-        conn = sqlite3.connect(self.db_path)
-        c = conn.cursor()
-        
-        # 1. CHECK CACHE FOR EXISTING PROPHECY 
-        c.execute("SELECT winner, confidence, home_rating, away_rating, prophecy FROM prophecy_logs WHERE match_key=?", (match_key,))
-        cached = c.fetchone()
-        if cached:
-            conn.close()
-            return {
-                "winner": cached[0], "confidence": cached[1], "home_rating": cached[2],
-                "away_rating": cached[3], "prophecy": cached[4], "status": "CACHED", "tier": tier
-            }
-
-        # 2. PERFORM ELO MATH 
-        h_stats = self.get_combat_stats(home)
-        a_stats = self.get_combat_stats(away)
-        
-        r_home = 1500 + ((h_stats[0] - h_stats[1]) * 10)
-        r_away = 1500 + ((a_stats[0] - a_stats[1]) * 10)
-
-        # Apply fatigue penalty for today's date 
-        r_home -= get_fatigue_penalty(home, "2026-02-09")
-        r_away -= get_fatigue_penalty(away, "2026-02-09")
-
-        prob = 1.0 / (1.0 + math.pow(10, (r_away - r_home) / 400.0))
-        winner = home if prob > 0.5 else away
-        confidence = f"{round(prob * 100 if prob > 0.5 else (1 - prob) * 100, 2)}%"
-
-        # 3. GENERATE AI PROPHECY 
+    def _load_madden_ratings(self):
         try:
-            prompt = f"LEVEL: {tier}. MATCHUP: {home} vs {away}. WINNER: {winner} ({confidence}). GIVE A CRYPTIC PROPHECY."
-            ai_resp = self.client.models.generate_content(model="models/gemini-2.0-flash", contents=prompt)
-            prophecy = ai_resp.text
-            
-            c.execute("INSERT OR REPLACE INTO prophecy_logs VALUES (?, ?, ?, ?, ?, ?, ?)",
-                      (match_key, winner, confidence, r_home, r_away, prophecy, tier))
-            conn.commit()
-            status = "SUCCESS"
-        except Exception as e:
-            print(f"AI CONNECTION FAILED: {e}")
-            prophecy = "BRAIN OVERHEATED. COOLDOWN ACTIVE."
-            status = "COOLDOWN"
+            with open("madden_ratings.json", "r") as file:
+                return json.load(file)
+        except FileNotFoundError:
+            print("[WARNING] madden_ratings.json not found.")
+            return {}
 
-        conn.close()
-        return {"winner": winner, "confidence": confidence, "prophecy": prophecy, "status": status, "tier": tier}
+    def get_season_stats(self, team_name, start_date):
+        """
+        The Stats Engine: Pulls the team's averages since the given start_date.
+        Focuses heavily on passing, rushing, and turnover differentials.
+        """
+        print(f"[DATA] Pulling stats for {team_name} from {start_date} onward...")
+        
+        # In production, this queries your database using the start_date.
+        # These represent average yards per game and turnovers.
+        mock_db = {
+            "Chiefs": {
+                "offense": {"pass_yds": 280, "rush_yds": 110, "turnovers": 1.1},
+                "defense": {"pass_yds_allowed": 210, "rush_yds_allowed": 105, "turnovers_forced": 1.5}
+            },
+            "Ravens": {
+                "offense": {"pass_yds": 220, "rush_yds": 160, "turnovers": 0.9},
+                "defense": {"pass_yds_allowed": 190, "rush_yds_allowed": 95, "turnovers_forced": 1.8}
+            }
+        }
+        return mock_db.get(team_name, {
+            "offense": {"pass_yds": 200, "rush_yds": 100, "turnovers": 1.5},
+            "defense": {"pass_yds_allowed": 200, "rush_yds_allowed": 100, "turnovers_forced": 1.0}
+        })
+
+    def calculate_matchup_advantage(self, offense_stats, defense_stats):
+        """
+        The Heartbeat of the Mission. 
+        Pits Team A's Offense directly against Team B's Defense.
+        """
+        # Calculate how the offense's average fares against the defense's allowance
+        # A positive number means the offense has the advantage.
+        pass_diff = offense_stats["pass_yds"] - defense_stats["pass_yds_allowed"]
+        rush_diff = offense_stats["rush_yds"] - defense_stats["rush_yds_allowed"]
+        
+        # Turnovers are massive swing multipliers. 
+        # (Offensive turnovers - Defensive takeaways) * heavy weight
+        turnover_battle = (defense_stats["turnovers_forced"] - offense_stats["turnovers"]) * 25 
+        
+        # Total matchup power score
+        matchup_score = pass_diff + rush_diff - turnover_battle
+        
+        return matchup_score
+
+    def get_gamified_prediction(self, team_a, team_b, season_start_date, manual_injuries=None):
+        """
+        Runs the full dual-sided matchup math and applies Madden penalties if provided.
+        """
+        if manual_injuries is None:
+            manual_injuries = {team_a: [], team_b: []}
+
+        print(f"\n--- INITIATING FORGE MATCHUP: {team_a} vs {team_b} ---")
+        print(f"Season Start Marker: {season_start_date}\n")
+
+        # 1. Pull core stats
+        stats_a = self.get_season_stats(team_a, season_start_date)
+        stats_b = self.get_season_stats(team_b, season_start_date)
+
+        # 2. Clash 1: Team A Offense vs Team B Defense
+        a_off_vs_b_def = self.calculate_matchup_advantage(stats_a["offense"], stats_b["defense"])
+        
+        # 3. Clash 2: Team B Offense vs Team A Defense
+        b_off_vs_a_def = self.calculate_matchup_advantage(stats_b["offense"], stats_a["defense"])
+
+        print(f"[CLASH 1] {team_a} Offense vs {team_b} Defense Advantage: {a_off_vs_b_def:.1f} pts")
+        print(f"[CLASH 2] {team_b} Offense vs {team_a} Defense Advantage: {b_off_vs_a_def:.1f} pts")
+
+        # 4. Determine Base Differential
+        base_differential = a_off_vs_b_def - b_off_vs_a_def
+
+        # 5. Apply Madden Injury Penalties (Manual input for now)
+        penalty_a = self._calculate_injury_penalty(team_a, manual_injuries[team_a])
+        penalty_b = self._calculate_injury_penalty(team_b, manual_injuries[team_b])
+
+        final_score = base_differential - penalty_a + penalty_b
+
+        # 6. Output the Verdict
+        print(f"\n[ADJUSTMENTS] {team_a} Penalty: -{penalty_a} | {team_b} Penalty: -{penalty_b}")
+        
+        if final_score > 0:
+            return f">> PREDICTION: {team_a} holds the numerical advantage (+{final_score:.1f})."
+        elif final_score < 0:
+            return f">> PREDICTION: {team_b} holds the numerical advantage (+{abs(final_score):.1f})."
+        else:
+            return ">> PREDICTION: DEAD HEAT. Perfect Matchup."
+
+    def _calculate_injury_penalty(self, team_name, injured_players):
+        """Checks the Madden JSON to subtract points for missing Top 5 stars."""
+        team_data = self.madden_ratings.get(team_name, {})
+        team_average = team_data.get("team_average", 80)
+        stars = team_data.get("stars", {})
+        
+        penalty = 0
+        for player in injured_players:
+            if player in stars:
+                drop = stars[player] - team_average
+                penalty += drop
+                print(f"[{team_name} ALERT] {player} OUT. Applying -{drop} point penalty.")
+        return penalty
+
+# --- Local Execution Test ---
+if __name__ == "__main__":
+    forge = ArchitectModel()
+    
+    # We set the start date, the teams, and any known injuries manually to test the math
+    start_date = "2026-09-05"
+    known_injuries = {
+        "Chiefs": [], 
+        "Ravens": ["Kyle Hamilton"] # Testing a star injury
+    }
+    
+    result = forge.get_gamified_prediction("Chiefs", "Ravens", start_date, known_injuries)
+    print(result)
