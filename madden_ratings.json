@@ -1,0 +1,322 @@
+{
+    "Chiefs": {
+        "team_average": 84,
+        "stars": {
+            "Patrick Mahomes": 99,
+            "Travis Kelce": 97,
+            "Chris Jones": 96,
+            "Creed Humphrey": 95,
+            "Trent McDuffie": 93
+        }
+    },
+    "49ers": {
+        "team_average": 86,
+        "stars": {
+            "Christian McCaffrey": 99,
+            "Trent Williams": 98,
+            "Fred Warner": 97,
+            "George Kittle": 96,
+            "Nick Bosa": 96
+        }
+    },
+    "Ravens": {
+        "team_average": 85,
+        "stars": {
+            "Lamar Jackson": 98,
+            "Roquan Smith": 96,
+            "Mark Andrews": 95,
+            "Kyle Hamilton": 94,
+            "Justin Madubuike": 92
+        }
+    },
+    "Bills": {
+        "team_average": 84,
+        "stars": {
+            "Josh Allen": 98,
+            "Von Miller": 94,
+            "Matt Milano": 92,
+            "Ed Oliver": 90,
+            "Rasul Douglas": 89
+        }
+    },
+    "Bengals": {
+        "team_average": 83,
+        "stars": {
+            "Joe Burrow": 95,
+            "Ja'Marr Chase": 95,
+            "Trey Hendrickson": 92,
+            "Tee Higgins": 89,
+            "Orlando Brown Jr.": 88
+        }
+    },
+    "Browns": {
+        "team_average": 84,
+        "stars": {
+            "Myles Garrett": 99,
+            "Nick Chubb": 95,
+            "Amari Cooper": 93,
+            "Denzel Ward": 92,
+            "Joel Bitonio": 91
+        }
+    },
+    "Steelers": {
+        "team_average": 82,
+        "stars": {
+            "T.J. Watt": 99,
+            "Minkah Fitzpatrick": 95,
+            "Cameron Heyward": 92,
+            "George Pickens": 89,
+            "Alex Highsmith": 88
+        }
+    },
+    "Dolphins": {
+        "team_average": 84,
+        "stars": {
+            "Tyreek Hill": 99,
+            "Jalen Ramsey": 96,
+            "Tua Tagovailoa": 92,
+            "Jaylen Waddle": 91,
+            "Terron Armstead": 90
+        }
+    },
+    "Eagles": {
+        "team_average": 85,
+        "stars": {
+            "A.J. Brown": 96,
+            "Lane Johnson": 95,
+            "Jalen Hurts": 93,
+            "Saquon Barkley": 92,
+            "DeVonta Smith": 90
+        }
+    },
+    "Cowboys": {
+        "team_average": 85,
+        "stars": {
+            "Micah Parsons": 98,
+            "Zack Martin": 97,
+            "CeeDee Lamb": 96,
+            "Dak Prescott": 93,
+            "Trevon Diggs": 92
+        }
+    },
+    "Lions": {
+        "team_average": 84,
+        "stars": {
+            "Penei Sewell": 96,
+            "Amon-Ra St. Brown": 95,
+            "Aidan Hutchinson": 93,
+            "Jared Goff": 90,
+            "Sam LaPorta": 89
+        }
+    },
+    "Packers": {
+        "team_average": 82,
+        "stars": {
+            "Jaire Alexander": 93,
+            "Rashan Gary": 91,
+            "Jordan Love": 89,
+            "Josh Jacobs": 88,
+            "Kenny Clark": 87
+        }
+    },
+    "Texans": {
+        "team_average": 82,
+        "stars": {
+            "C.J. Stroud": 92,
+            "Laremy Tunsil": 94,
+            "Danielle Hunter": 91,
+            "Will Anderson Jr.": 89,
+            "Stefon Diggs": 92
+        }
+    },
+    "Rams": {
+        "team_average": 81,
+        "stars": {
+            "Matthew Stafford": 92,
+            "Cooper Kupp": 92,
+            "Puka Nacua": 90,
+            "Kyren Williams": 89,
+            "Kobie Turner": 88
+        }
+    },
+    "Bears": {
+        "team_average": 79,
+        "stars": {
+            "Jaylon Johnson": 93,
+            "Montez Sweat": 90,
+            "D.J. Moore": 89,
+            "Keenan Allen": 89,
+            "Tremaine Edmunds": 87
+        }
+    },
+    "Vikings": {
+        "team_average": 80,
+        "stars": {
+            "Justin Jefferson": 99,
+            "Christian Darrisaw": 92,
+            "Harrison Smith": 90,
+            "T.J. Hockenson": 89,
+            "Aaron Jones": 88
+        }
+    },
+    "Falcons": {
+        "team_average": 81,
+        "stars": {
+            "Jessie Bates III": 97,
+            "Chris Lindstrom": 94,
+            "Justin Simmons": 92,
+            "Kirk Cousins": 89,
+            "Bijan Robinson": 88
+        }
+    },
+    "Saints": {
+        "team_average": 80,
+        "stars": {
+            "Demario Davis": 93,
+            "Tyrann Mathieu": 91,
+            "Alvin Kamara": 89,
+            "Marshon Lattimore": 89,
+            "Cameron Jordan": 88
+        }
+    },
+    "Buccaneers": {
+        "team_average": 81,
+        "stars": {
+            "Antoine Winfield Jr.": 95,
+            "Mike Evans": 92,
+            "Tristan Wirfs": 92,
+            "Lavonte David": 90,
+            "Vita Vea": 89
+        }
+    },
+    "Panthers": {
+        "team_average": 76,
+        "stars": {
+            "Derrick Brown": 92,
+            "Jaycee Horn": 87,
+            "Robert Hunt": 86,
+            "Diontae Johnson": 84,
+            "Shaq Thompson": 84
+        }
+    },
+    "Giants": {
+        "team_average": 77,
+        "stars": {
+            "Dexter Lawrence": 96,
+            "Andrew Thomas": 92,
+            "Brian Burns": 89,
+            "Bobby Okereke": 86,
+            "Kayvon Thibodeaux": 85
+        }
+    },
+    "Commanders": {
+        "team_average": 78,
+        "stars": {
+            "Terry McLaurin": 90,
+            "Jonathan Allen": 89,
+            "Daron Payne": 88,
+            "Frankie Luvu": 86,
+            "Austin Ekeler": 85
+        }
+    },
+    "Jets": {
+        "team_average": 83,
+        "stars": {
+            "Sauce Gardner": 97,
+            "Quinnen Williams": 96,
+            "Aaron Rodgers": 92,
+            "Breece Hall": 91,
+            "Garrett Wilson": 90
+        }
+    },
+    "Patriots": {
+        "team_average": 78,
+        "stars": {
+            "Christian Barmore": 89,
+            "Kyle Dugger": 88,
+            "Mike Onwenu": 87,
+            "Jabrill Peppers": 86,
+            "Matthew Judon": 86
+        }
+    },
+    "Colts": {
+        "team_average": 80,
+        "stars": {
+            "Quenton Nelson": 93,
+            "DeForest Buckner": 92,
+            "Jonathan Taylor": 90,
+            "Michael Pittman Jr.": 88,
+            "Kenny Moore II": 87
+        }
+    },
+    "Titans": {
+        "team_average": 78,
+        "stars": {
+            "Jeffery Simmons": 92,
+            "L'Jarius Sneed": 91,
+            "Calvin Ridley": 88,
+            "Harold Landry III": 87,
+            "DeAndre Hopkins": 87
+        }
+    },
+    "Jaguars": {
+        "team_average": 80,
+        "stars": {
+            "Josh Hines-Allen": 93,
+            "Travis Etienne Jr.": 89,
+            "Evan Engram": 88,
+            "Trevor Lawrence": 87,
+            "Tyson Campbell": 86
+        }
+    },
+    "Chargers": {
+        "team_average": 81,
+        "stars": {
+            "Derwin James Jr.": 92,
+            "Justin Herbert": 91,
+            "Rashawn Slater": 90,
+            "Joey Bosa": 89,
+            "Khalil Mack": 89
+        }
+    },
+    "Raiders": {
+        "team_average": 79,
+        "stars": {
+            "Maxx Crosby": 98,
+            "Davante Adams": 96,
+            "Christian Wilkins": 91,
+            "Kolton Miller": 88,
+            "Jack Jones": 84
+        }
+    },
+    "Broncos": {
+        "team_average": 77,
+        "stars": {
+            "Patrick Surtain II": 95,
+            "Quinn Meinerz": 90,
+            "Courtland Sutton": 84,
+            "Garett Bolles": 83,
+            "Javonte Williams": 82
+        }
+    },
+    "Seahawks": {
+        "team_average": 80,
+        "stars": {
+            "DK Metcalf": 89,
+            "Kenneth Walker III": 88,
+            "Leonard Williams": 88,
+            "Tyler Lockett": 87,
+            "Devon Witherspoon": 87
+        }
+    },
+    "Cardinals": {
+        "team_average": 77,
+        "stars": {
+            "Budda Baker": 91,
+            "Kyler Murray": 88,
+            "Trey McBride": 87,
+            "James Conner": 86,
+            "Jalen Thompson": 85
+        }
+    }
+}
