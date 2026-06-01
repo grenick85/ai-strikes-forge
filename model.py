@@ -98,6 +98,83 @@ class ArchitectModel:
         else:
             return ">> PREDICTION: DEAD HEAT. Perfect Matchup."
 
+    def get_tiered_prediction(self, home, away, tier="Tactical Advantage", manual_injuries=None):
+        """
+        Get a prediction with tiered intelligence levels.
+        Tier 1 (Tactical Advantage): Basic analysis
+        Tier 2 (Eyes in the Sky): Detailed analysis
+        Tier 3 (Cyber-nuked): Deep analysis with injury impacts
+        """
+        if manual_injuries is None:
+            manual_injuries = {home: [], away: []}
+
+        print(f"\n--- INITIATING {tier.upper()} PREDICTION ---")
+        print(f"Matchup: {home} vs {away}\n")
+
+        # Pull core stats
+        home_stats = self.get_season_stats(home, "2026-01-01")
+        away_stats = self.get_season_stats(away, "2026-01-01")
+
+        # Calculate basic matchup
+        home_off_vs_away_def = self.calculate_matchup_advantage(home_stats["offense"], away_stats["defense"])
+        away_off_vs_home_def = self.calculate_matchup_advantage(away_stats["offense"], home_stats["defense"])
+
+        base_differential = home_off_vs_away_def - away_off_vs_home_def
+
+        # Tier-specific analysis
+        if tier == "Tactical Advantage":
+            # Basic prediction
+            confidence = 65
+            prediction = self._generate_prediction(base_differential, home, away)
+        
+        elif tier == "Eyes in the Sky":
+            # Include injury analysis
+            penalty_home = self._calculate_injury_penalty(home, manual_injuries[home])
+            penalty_away = self._calculate_injury_penalty(away, manual_injuries[away])
+            adjusted_diff = base_differential - penalty_home + penalty_away
+            prediction = self._generate_prediction(adjusted_diff, home, away)
+            confidence = 78
+        
+        elif tier == "Cyber-nuked":
+            # Full analysis with all factors
+            penalty_home = self._calculate_injury_penalty(home, manual_injuries[home])
+            penalty_away = self._calculate_injury_penalty(away, manual_injuries[away])
+            adjusted_diff = base_differential - penalty_home + penalty_away
+            
+            # Add turnover weighting
+            turnover_impact = abs(home_stats["offense"]["turnovers"] - away_stats["offense"]["turnovers"]) * 15
+            final_diff = adjusted_diff + turnover_impact
+            
+            prediction = self._generate_prediction(final_diff, home, away)
+            confidence = 89
+        
+        else:
+            confidence = 50
+            prediction = self._generate_prediction(base_differential, home, away)
+
+        return {
+            "status": "SUCCESS",
+            "intel": prediction,
+            "home_team": home,
+            "away_team": away,
+            "tier": tier,
+            "confidence": f"{confidence}%",
+            "matchup_score": f"{base_differential:.2f}"
+        }
+
+    def _generate_prediction(self, differential, home, away):
+        """Generate a prediction message based on the differential."""
+        if differential > 10:
+            return f"🎯 {home} has a DOMINANT advantage. Prediction: {home} WINS by 2+ scores."
+        elif differential > 0:
+            return f"✓ {home} shows statistical superiority. Prediction: {home} WINS."
+        elif differential < -10:
+            return f"🎯 {away} has a DOMINANT advantage. Prediction: {away} WINS by 2+ scores."
+        elif differential < 0:
+            return f"✓ {away} shows statistical superiority. Prediction: {away} WINS."
+        else:
+            return f"⚖️ Perfect statistical matchup. Prediction: TOSS UP / DEAD HEAT."
+
     def _calculate_injury_penalty(self, team_name, injured_players):
         """Checks the Madden JSON to subtract points for missing Top 5 stars."""
         team_data = self.madden_ratings.get(team_name, {})
@@ -116,12 +193,6 @@ class ArchitectModel:
 if __name__ == "__main__":
     forge = ArchitectModel()
     
-    # We set the start date, the teams, and any known injuries manually to test the math
-    start_date = "2026-09-05"
-    known_injuries = {
-        "Chiefs": [], 
-        "Ravens": ["Kyle Hamilton"] # Testing a star injury
-    }
-    
-    result = forge.get_gamified_prediction("Chiefs", "Ravens", start_date, known_injuries)
-    print(result)
+    # Test the tiered prediction
+    result = forge.get_tiered_prediction("Chiefs", "Ravens", tier="Eyes in the Sky")
+    print(f"\nPrediction Result: {result}")
