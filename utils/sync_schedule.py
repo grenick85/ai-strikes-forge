@@ -1,30 +1,19 @@
+"""Backward-compatible schedule sync wrapper"""
 import requests
 import sqlite3
-import os
+from .config import get_db_path, init_databases
 
-# The high-fidelity feeds
 FEEDS = {
     "NCAAB": "https://site.api.espn.com/apis/site/v2/sports/basketball/mens-college-basketball/scoreboard",
     "NBA": "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard"
 }
 
 def run_sync():
-    # LOOK UP ONE LEVEL for the memory bank
-    db_path = os.path.join(os.path.dirname(__file__), '..', 'architect_memory.db')
-    conn = sqlite3.connect(db_path)
+    """Sync schedules from ESPN"""
+    init_databases()
+    db_path = get_db_path()
+    conn = sqlite3.connect(str(db_path))
     cursor = conn.cursor()
-
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS schedule (
-            game_id INTEGER PRIMARY KEY AUTOINCREMENT,
-            sport TEXT,
-            home_team TEXT,
-            away_team TEXT,
-            date TEXT,
-            status TEXT,
-            spread REAL DEFAULT 0.0
-        )
-    ''')
 
     for sport, url in FEEDS.items():
         try:

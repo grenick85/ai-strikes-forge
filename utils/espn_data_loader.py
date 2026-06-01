@@ -1,47 +1,16 @@
-"""
-ESPN Data Loader - Populates team_stats with win/loss records and point differentials
-"""
+"""ESPN Data Loader - Populates team_stats with win/loss records and point differentials"""
 import requests
 import sqlite3
-import os
 from datetime import datetime
+from .config import get_db_path, init_databases
 
-# ESPN API endpoints for NCAA Basketball
 ESPN_ENDPOINTS = {
     "NCAAB_STANDINGS": "https://site.api.espn.com/apis/site/v2/sports/basketball/mens-college-basketball/standings",
     "NCAAB_SCOREBOARD": "https://site.api.espn.com/apis/site/v2/sports/basketball/mens-college-basketball/scoreboard"
 }
 
-def get_db_path():
-    """Get path to architect_memory.db"""
-    base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    return os.path.join(base_dir, "architect_memory.db")
-
-def init_team_stats_table():
-    """Create team_stats table if it doesn't exist"""
-    conn = sqlite3.connect(get_db_path())
-    cursor = conn.cursor()
-    
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS team_stats (
-            team_name TEXT PRIMARY KEY,
-            wins INTEGER DEFAULT 0,
-            losses INTEGER DEFAULT 0,
-            points_for REAL DEFAULT 0.0,
-            points_against REAL DEFAULT 0.0,
-            last_updated DATETIME DEFAULT CURRENT_TIMESTAMP
-        )
-    ''')
-    
-    conn.commit()
-    conn.close()
-    print("✓ team_stats table initialized")
-
 def load_ncaab_standings():
-    """
-    Fetch NCAA Basketball standings from ESPN
-    Extracts wins, losses, and point differentials per team
-    """
+    """Fetch NCAA Basketball standings from ESPN"""
     print("[ SCANNING ESPN NCAAB STANDINGS... ]")
     
     try:
@@ -51,13 +20,11 @@ def load_ncaab_standings():
         
         team_stats = {}
         
-        # Navigate ESPN's nested structure: groups -> teams
         for group in data.get('standings', {}).get('groups', []):
             for team in group.get('team', []):
                 team_name = team.get('displayName', '')
                 stats = team.get('stats', [])
                 
-                # Parse ESPN stats array
                 wins = 0
                 losses = 0
                 points_for = 0.0
@@ -92,10 +59,7 @@ def load_ncaab_standings():
         return {}
 
 def load_ncaab_scores():
-    """
-    Fetch recent games from ESPN to supplement standings data
-    Updates points_for/points_against for teams
-    """
+    """Fetch recent games from ESPN"""
     print("[ SCANNING ESPN NCAAB RECENT GAMES... ]")
     
     try:
@@ -106,7 +70,6 @@ def load_ncaab_scores():
         team_points = {}
         
         for event in data.get('events', []):
-            # Only process completed games
             if event.get('status', {}).get('type') != 'final':
                 continue
             
@@ -126,7 +89,6 @@ def load_ncaab_scores():
             away_score = int(away_comp.get('score', 0))
             
             if home_team and away_team:
-                # Track points for and against
                 if home_team not in team_points:
                     team_points[home_team] = {'for': 0, 'against': 0, 'games': 0}
                 if away_team not in team_points:
@@ -147,11 +109,8 @@ def load_ncaab_scores():
         return {}
 
 def save_team_stats(standings_data, scores_data):
-    """
-    Save team stats to SQLite database
-    Combines standings data with per-game scoring data
-    """
-    conn = sqlite3.connect(get_db_path())
+    """Save team stats to database"""
+    conn = sqlite3.connect(str(get_db_path()))
     cursor = conn.cursor()
     
     all_teams = set(standings_data.keys()) | set(scores_data.keys())
@@ -162,25 +121,21 @@ def save_team_stats(standings_data, scores_data):
         
         wins = stands.get('wins', 0)
         losses = stands.get('losses', 0)
-        
-        # Use standings data first, fall back to scores data
         points_for = stands.get('points_for', 0) or (scores.get('for', 0) / max(scores.get('games', 1), 1))
         points_against = stands.get('points_against', 0) or (scores.get('against', 0) / max(scores.get('games', 1), 1))
         
         cursor.execute('''
-            INSERT OR REPLACE INTO team_stats 
+            INSERT OR REPLACE INTO team_stats
             (team_name, wins, losses, points_for, points_against, last_updated)
             VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
         ''', (team_name, wins, losses, points_for, points_against))
     
     conn.commit()
     
-    # Print summary
     cursor.execute("SELECT COUNT(*) FROM team_stats")
     team_count = cursor.fetchone()[0]
     print(f"[ SUCCESS: {team_count} TEAMS CATALOGED IN MEMORY ]")
     
-    # Show top differentials
     cursor.execute('''
         SELECT team_name, wins, losses, ROUND(points_for - points_against, 1) as diff
         FROM team_stats
@@ -195,12 +150,12 @@ def save_team_stats(standings_data, scores_data):
     conn.close()
 
 def sync_all_data():
-    """Main function: Initialize and load all ESPN data"""
+    """Main sync function"""
     print("\n" + "="*60)
-    print("[ AI STRIKES - ARCHITECT MEMORY INITIALIZATION ]")
+    print("[ AI STRIKES - ARCHITECT MEMORY SYNC ]")
     print("="*60 + "\n")
     
-    init_team_stats_table()
+    init_databases()
     
     standings = load_ncaab_standings()
     scores = load_ncaab_scores()
