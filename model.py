@@ -24,17 +24,50 @@ class ArchitectModel:
         # These represent average yards per game and turnovers.
         mock_db = {
             "Chiefs": {
-                "offense": {"pass_yds": 280, "rush_yds": 110, "turnovers": 1.1},
-                "defense": {"pass_yds_allowed": 210, "rush_yds_allowed": 105, "turnovers_forced": 1.5}
+                "offense": {"pass_yds": 280, "rush_yds": 110, "turnovers": 1.1, "pf": 28.3},
+                "defense": {"pass_yds_allowed": 210, "rush_yds_allowed": 105, "turnovers_forced": 1.5, "pa": 21.5},
+                "rank": 89,
+                "off_pass_stat": 216.6,
+                "off_rush_stat": 159.6,
+                "def_pass_stat": 156.9,
+                "def_rush_stat": 136.2,
             },
             "Ravens": {
-                "offense": {"pass_yds": 220, "rush_yds": 160, "turnovers": 0.9},
-                "defense": {"pass_yds_allowed": 190, "rush_yds_allowed": 95, "turnovers_forced": 1.8}
+                "offense": {"pass_yds": 220, "rush_yds": 160, "turnovers": 0.9, "pf": 17.6},
+                "defense": {"pass_yds_allowed": 190, "rush_yds_allowed": 95, "turnovers_forced": 1.8, "pa": 29.6},
+                "rank": 83,
+                "off_pass_stat": 140.3,
+                "off_rush_stat": 123.3,
+                "def_pass_stat": 216.1,
+                "def_rush_stat": 139.5,
+            },
+            "Buffalo Bills": {
+                "offense": {"pass_yds": 280, "rush_yds": 110, "turnovers": 1.1, "pf": 28.3},
+                "defense": {"pass_yds_allowed": 210, "rush_yds_allowed": 105, "turnovers_forced": 1.5, "pa": 21.5},
+                "rank": 89,
+                "off_pass_stat": 216.6,
+                "off_rush_stat": 159.6,
+                "def_pass_stat": 156.9,
+                "def_rush_stat": 136.2,
+            },
+            "New York Jets": {
+                "offense": {"pass_yds": 220, "rush_yds": 160, "turnovers": 0.9, "pf": 17.6},
+                "defense": {"pass_yds_allowed": 190, "rush_yds_allowed": 95, "turnovers_forced": 1.8, "pa": 29.6},
+                "rank": 83,
+                "off_pass_stat": 140.3,
+                "off_rush_stat": 123.3,
+                "def_pass_stat": 216.1,
+                "def_rush_stat": 139.5,
             }
         }
         return mock_db.get(team_name, {
-            "offense": {"pass_yds": 200, "rush_yds": 100, "turnovers": 1.5},
-            "defense": {"pass_yds_allowed": 200, "rush_yds_allowed": 100, "turnovers_forced": 1.0}
+            "offense": {"pass_yds": 200, "rush_yds": 100, "turnovers": 1.5, "pf": 20.0},
+            "defense": {"pass_yds_allowed": 200, "rush_yds_allowed": 100, "turnovers_forced": 1.0, "pa": 21.0},
+            "rank": 16,
+            "off_pass_stat": 180.0,
+            "off_rush_stat": 115.0,
+            "def_pass_stat": 190.0,
+            "def_rush_stat": 120.0,
         })
 
     def calculate_matchup_advantage(self, offense_stats, defense_stats):
@@ -55,6 +88,60 @@ class ArchitectModel:
         matchup_score = pass_diff + rush_diff - turnover_battle
         
         return matchup_score
+
+    def calculate_score_prediction(self, team_stats, opponent_stats, is_home=True):
+        """
+        Apply the prediction formula to calculate numerical score.
+        
+        Formula Components (from your spreadsheet):
+        - Offensive Pass Yards
+        - Offensive Rush Yards
+        - Points For (PF)
+        - Points Against (PA)
+        - Defensive Pass Yards Allowed
+        - Defensive Rush Yards Allowed
+        - Rank vs Rank differential
+        - Pass differential
+        - Rush differential
+        - Sum of team differential
+        - Special math for game outcome
+        - Injury adjustment
+        """
+        
+        # Extract stats
+        off_pass = team_stats.get("off_pass_stat", 200.0)
+        off_rush = team_stats.get("off_rush_stat", 110.0)
+        pf = team_stats["offense"].get("pf", 20.0)
+        pa = team_stats["defense"].get("pa", 21.0)
+        def_pass = team_stats.get("def_pass_stat", 200.0)
+        def_rush = team_stats.get("def_rush_stat", 115.0)
+        rank = team_stats.get("rank", 16)
+        opp_rank = opponent_stats.get("rank", 16)
+        
+        # Calculate differentials
+        pass_diff = off_pass - def_pass
+        rush_diff = off_rush - def_rush
+        rank_diff = rank - opp_rank  # Home field / strength indicator
+        
+        # Sum of team differential
+        sum_of_differential = pass_diff + rush_diff + rank_diff
+        
+        # Base score calculation
+        base_score = pf + (pass_diff * 0.02) + (rush_diff * 0.03)
+        
+        # Special math for game outcome (applied multiplier based on matchup)
+        matchup_multiplier = 1.0 + (sum_of_differential * 0.001)
+        
+        # Injury adjustment (default to 0 for now, can be enhanced)
+        injury_adjustment = 0
+        
+        # Final score calculation
+        final_score = (base_score * matchup_multiplier) + injury_adjustment
+        
+        # Ensure realistic NFL score range (0-65)
+        final_score = max(0, min(65, final_score))
+        
+        return round(final_score, 1)
 
     def get_gamified_prediction(self, team_a, team_b, season_start_date, manual_injuries=None):
         """
@@ -100,10 +187,10 @@ class ArchitectModel:
 
     def get_tiered_prediction(self, home, away, tier="Tactical Advantage", manual_injuries=None):
         """
-        Get a prediction with tiered intelligence levels.
+        Get a prediction with tiered intelligence levels and NUMERICAL SCORE PREDICTIONS.
         Tier 1 (Tactical Advantage): Basic analysis
-        Tier 2 (Eyes in the Sky): Detailed analysis
-        Tier 3 (Cyber-nuked): Deep analysis with injury impacts
+        Tier 2 (Eyes in the Sky): Detailed analysis with scores
+        Tier 3 (Cyber-nuked): Deep analysis with scores and injury impacts
         """
         if manual_injuries is None:
             manual_injuries = {home: [], away: []}
@@ -114,6 +201,10 @@ class ArchitectModel:
         # Pull core stats
         home_stats = self.get_season_stats(home, "2026-01-01")
         away_stats = self.get_season_stats(away, "2026-01-01")
+
+        # Calculate score predictions
+        home_score = self.calculate_score_prediction(home_stats, away_stats, is_home=True)
+        away_score = self.calculate_score_prediction(away_stats, home_stats, is_home=False)
 
         # Calculate basic matchup
         home_off_vs_away_def = self.calculate_matchup_advantage(home_stats["offense"], away_stats["defense"])
@@ -128,10 +219,15 @@ class ArchitectModel:
             prediction = self._generate_prediction(base_differential, home, away)
         
         elif tier == "Eyes in the Sky":
-            # Include injury analysis
+            # Include injury analysis and refine scores
             penalty_home = self._calculate_injury_penalty(home, manual_injuries[home])
             penalty_away = self._calculate_injury_penalty(away, manual_injuries[away])
             adjusted_diff = base_differential - penalty_home + penalty_away
+            
+            # Adjust scores based on injuries
+            home_score = max(0, home_score - penalty_home)
+            away_score = max(0, away_score - penalty_away)
+            
             prediction = self._generate_prediction(adjusted_diff, home, away)
             confidence = 78
         
@@ -145,6 +241,10 @@ class ArchitectModel:
             turnover_impact = abs(home_stats["offense"]["turnovers"] - away_stats["offense"]["turnovers"]) * 15
             final_diff = adjusted_diff + turnover_impact
             
+            # Adjust scores with all factors
+            home_score = max(0, home_score - penalty_home + (turnover_impact * 0.5))
+            away_score = max(0, away_score - penalty_away - (turnover_impact * 0.5))
+            
             prediction = self._generate_prediction(final_diff, home, away)
             confidence = 89
         
@@ -152,14 +252,21 @@ class ArchitectModel:
             confidence = 50
             prediction = self._generate_prediction(base_differential, home, away)
 
+        # Ensure scores are realistic
+        home_score = round(max(0, min(65, home_score)), 1)
+        away_score = round(max(0, min(65, away_score)), 1)
+
         return {
             "status": "SUCCESS",
             "intel": prediction,
             "home_team": home,
             "away_team": away,
+            "home_score": home_score,
+            "away_score": away_score,
             "tier": tier,
             "confidence": f"{confidence}%",
-            "matchup_score": f"{base_differential:.2f}"
+            "matchup_score": f"{base_differential:.2f}",
+            "prediction_summary": f"{home} {home_score} - {away_score} {away}"
         }
 
     def _generate_prediction(self, differential, home, away):
