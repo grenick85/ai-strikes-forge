@@ -3,7 +3,7 @@ import sqlite3
 import uvicorn
 import datetime
 from fastapi import FastAPI, Request, Form, HTTPException
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from model import ArchitectModel
@@ -76,19 +76,52 @@ async def vault_hub(request: Request, email_or_id: str):
 # --- 4. The Operating Theater (Strikes) ---
 @app.post("/strike")
 async def strike(home: str = Form(...), away: str = Form(...), citizen_id: str = Form(...), tier: str = Form(...)):
-    intel = model.get_tiered_prediction(home, away, tier=tier)
-    
-    if intel["status"] == "SUCCESS":
-        costs = {"Tactical Advantage": 0.5, "Eyes in the Sky": 1.0, "Cyber-nuked": 2.0}
-        cost = costs.get(tier, 0.5)
+    """
+    Execute a strike prediction with tiered intelligence.
+    Returns numerical score predictions and matchup analysis.
+    """
+    try:
+        # Get tiered prediction with scores
+        prediction_data = model.get_tiered_prediction(home, away, tier=tier)
         
-        conn = sqlite3.connect(FORGE_DB)
-        conn.execute("UPDATE citizens SET fusion_cores = fusion_cores - ? WHERE citizen_id=?", 
-                     (cost, citizen_id))
-        conn.commit()
-        conn.close()
-        
-    return {"status": intel["status"], "intel": intel}
+        if prediction_data["status"] == "SUCCESS":
+            # Deduct fusion cores based on tier
+            costs = {"Tactical Advantage": 0.5, "Eyes in the Sky": 1.0, "Cyber-nuked": 2.0}
+            cost = costs.get(tier, 0.5)
+            
+            conn = sqlite3.connect(FORGE_DB)
+            conn.execute("UPDATE citizens SET fusion_cores = fusion_cores - ? WHERE citizen_id=?", 
+                         (cost, citizen_id))
+            conn.commit()
+            conn.close()
+            
+            # Return enhanced response with score predictions
+            return {
+                "status": prediction_data["status"],
+                "cost": cost,
+                "intel": prediction_data["intel"],
+                "home_team": prediction_data["home_team"],
+                "away_team": prediction_data["away_team"],
+                "home_score": prediction_data["home_score"],
+                "away_score": prediction_data["away_score"],
+                "prediction_summary": prediction_data["prediction_summary"],
+                "confidence": prediction_data["confidence"],
+                "matchup_score": prediction_data["matchup_score"],
+                "tier": tier,
+                "timestamp": datetime.datetime.now().isoformat()
+            }
+        else:
+            return {
+                "status": "ERROR",
+                "detail": "Prediction failed. Unable to acquire intelligence."
+            }
+            
+    except Exception as e:
+        print(f"[STRIKE ERROR] {str(e)}")
+        return {
+            "status": "ERROR",
+            "detail": f"Strike execution failed: {str(e)}"
+        }
 
 if __name__ == "__main__":
     uvicorn.run(app, host="127.0.0.1", port=8000)
